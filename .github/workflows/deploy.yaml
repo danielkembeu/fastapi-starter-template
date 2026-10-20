@@ -33,7 +33,7 @@ jobs:
       SECRET_JWT: ci-secret-not-used-in-prod
       SENTRY_DSN: ""
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-python@v5
@@ -53,7 +53,7 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.ref }}
       - id: meta
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging # Environment GitHub : secrets et variables de staging
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Migrer puis déployer — À ADAPTER
         env:
           IMAGE_TAG: ${{ needs.image.outputs.tag }}
@@ -95,7 +95,7 @@ jobs:
     # Configurer des « Required reviewers » sur cet Environment : le job attend une approbation humaine.
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Migrer puis déployer — À ADAPTER
         env:
           IMAGE_TAG: ${{ needs.image.outputs.tag }}
