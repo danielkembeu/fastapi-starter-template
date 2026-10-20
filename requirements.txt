@@ -41,7 +41,7 @@ python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.29
 PyYAML==6.0.3
-redis==7.3.0
+redis==8.1.0
 rich-toolkit==0.19.10
 rich==15.0.0
 rignore==0.7.6
