@@ -1,0 +1,2 @@
+# Dépendance optionnelle : MongoDB (DATABASE_BACKEND=mongodb)
+pymongo==4.15.0

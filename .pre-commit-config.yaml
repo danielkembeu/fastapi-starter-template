@@ -1,0 +1,80 @@
+# Hooks git partagés (framework pre-commit). Installation : make hooks  (avec le venv ACTIF)
+#
+# Répartition :
+#   - commit : rapide (< 2 s) — hygiène des fichiers, secrets, lint, format.
+#     Bloque ce qui est irrattrapable une fois poussé (un secret, un fichier cassé).
+#   - push   : complet (~1 min) — une seule tête Alembic, types, API_REFERENCE à jour, tests + couverture.
+#     Dernier point de contrôle avant d'engager la CI et les autres.
+#
+# Les hooks « locaux » utilisent le venv du projet : même version d'outil que requirements-dev.txt,
+# mêmes résultats que `make check` et que la CI. Ne jamais contourner avec --no-verify.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: debug-statements
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format --check
+        entry: python -m ruff format --check
+        language: system
+        types: [python]
+
+      # ------------------------------------------------------------ pre-push
+      - id: alembic-single-head
+        name: une seule tête de migration Alembic
+        entry: make heads
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: mypy
+        name: mypy (types)
+        entry: make type
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: api-reference
+        name: API_REFERENCE.md à jour
+        entry: python -m scripts.generate_api_reference --check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: pytest-cov
+        name: pytest + seuil de couverture
+        entry: make cov
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

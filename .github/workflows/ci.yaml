@@ -1,0 +1,148 @@
+name: CI
+
+# Vérifie chaque push et chaque PR : ce qui passe en local (`make check`) doit passer ici.
+# Aucun secret réel n'est utilisé : la base est éphémère (conteneur de service) et les valeurs sont factices.
+on:
+  # push:
+  #   branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Une nouvelle poussée annule l'exécution précédente de la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Principe du moindre privilège : la CI lit le dépôt, rien d'autre.
+permissions:
+  contents: read
+
+env:
+  ENVIRONMENT: ci
+  SECRET_JWT: ci-secret-not-used-in-prod
+  SENTRY_DSN: ""
+
+jobs:
+  quality:
+    name: Qualité (lint, types, documentation)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite://
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make install
+      - name: Lint (ruff)
+        run: make lint
+      - name: Types (mypy)
+        run: make type
+      - name: API_REFERENCE.md est à jour
+        run: python -m scripts.generate_api_reference --check
+
+  tests:
+    name: Tests (SQLite + couverture, puis PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: sqlite://
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make install
+      - name: Tests sur SQLite + seuil de couverture
+        run: make cov
+      - name: Tests sur PostgreSQL (types enum, JSONB, déclencheur d'audit)
+        run: python -m pytest -p no:cacheprovider
+
+  migrations:
+    name: Migrations (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/migrations
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make install
+      - name: Une seule tête de migration
+        run: make heads
+      - name: Migrations sur une base vierge
+        run: alembic upgrade head
+      - name: Modèles et migrations synchrones (échoue si un modèle a changé sans migration)
+        run: make drift
+      - name: Retour arrière complet puis rejeu
+        run: |
+          alembic downgrade base
+          alembic upgrade head
+      - name: Les migrations générées sont déjà formatées
+        run: python -m ruff format --check alembic && python -m ruff check alembic
+
+  docker:
+    name: Image Docker (construction + sonde de vie)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction
+        run: docker build -t app:ci .
+      - name: L'image démarre et répond à /health/live
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e ENVIRONMENT=ci -e DATABASE_URL=sqlite:// -e SECRET_JWT=ci-secret-not-used-in-prod \
+            app:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8000/health/live && exit 0
+            sleep 1
+          done
+          docker logs app
+          exit 1
+
+  security:
+    name: Sécurité (dépendances)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make install
+      - name: Vulnérabilités connues des dépendances
+        # Informatif au départ ; À RENDRE BLOQUANT (retirer continue-on-error) dès que la base est propre.
+        continue-on-error: true
+        run: make audit

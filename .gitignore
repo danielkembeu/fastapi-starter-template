@@ -1,0 +1,137 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+node_modules/
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+tests/__pycache__/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# FastAPI / starlette
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+*.sqlite3
+
+# Pyre type checker
+.pyre/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# VS Code
+.vscode/
+.code-workspace
+
+# Editors
+*.swp
+*~
+.idea/
+
+# Local dev tools
+dev.db
+
+# Alembic migrations cache
+alembic/versions/*.pyc
+
+# Database and sensitive files
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+
+# Docker
+*.pid
+
+# Logs
+*.log
+
+# Ignore pytest debug log
+pytestdebug.log
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore coverage HTML output
+htmlcov/
+
+# Ignore Python-migrations
+migrations/
+# Ignore alembic migration versions (but keep .keep etc. if present)
+alembic/versions/*.pyc
+
+
+/docs
+!/docs/
+
+/.claude
+
+# Fichiers téléversés en développement (STORAGE_BACKEND=local)
+static/uploads/

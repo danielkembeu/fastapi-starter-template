@@ -1,0 +1,105 @@
+name: Deploy
+
+# Chaîne de livraison : image → staging (automatique) → production (validation humaine).
+#
+#   git tag v1.2.0 && git push --tags      ← déclenche l'image et le déploiement en staging
+#   (relecteur GitHub approuve)            ← déploie en production
+#
+# SÉCURITÉ PAR DÉFAUT : tant que les étapes « À ADAPTER » ne sont pas remplies, le déploiement ÉCHOUE
+# bruyamment au lieu de réussir sans rien faire. Voir docs/PIPELINES.md pour la mise en place
+# (Environments GitHub, relecteurs obligatoires, secrets par environnement).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag ou SHA à déployer en staging"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  verify:
+    name: Vérifier (même contrôle que la CI)
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ci
+      DATABASE_URL: sqlite://
+      SECRET_JWT: ci-secret-not-used-in-prod
+      SENTRY_DSN: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make install
+      - run: make check
+
+  image:
+    name: Construire et publier l'image
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Ajouter ici les dépendances optionnelles nécessaires : build-args: EXTRAS=storage mongo
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+
+  staging:
+    name: Staging
+    needs: image
+    runs-on: ubuntu-latest
+    environment: staging # Environment GitHub : secrets et variables de staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrer puis déployer — À ADAPTER
+        env:
+          IMAGE_TAG: ${{ needs.image.outputs.tag }}
+        run: |
+          echo "::error::Étape de déploiement staging non configurée (voir docs/PIPELINES.md)."
+          echo "Ordre à respecter : 1) alembic upgrade head (sur la base staging)  2) démarrer la nouvelle image"
+          echo "3) attendre /health/ready = 200  4) retirer l'ancienne version. Image : ${IMAGE}:${IMAGE_TAG}"
+          exit 1
+
+  production:
+    name: Production
+    needs: [image, staging]
+    runs-on: ubuntu-latest
+    # Configurer des « Required reviewers » sur cet Environment : le job attend une approbation humaine.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrer puis déployer — À ADAPTER
+        env:
+          IMAGE_TAG: ${{ needs.image.outputs.tag }}
+        run: |
+          echo "::error::Étape de déploiement production non configurée (voir docs/PIPELINES.md)."
+          echo "Mêmes étapes qu'en staging, sur la base de production, après sauvegarde. Image : ${IMAGE}:${IMAGE_TAG}"
+          exit 1

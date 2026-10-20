@@ -1,0 +1,133 @@
+[project]
+name = "fastapi-backend-template"
+version = "1.0.0"
+description = "Socle backend FastAPI + SQLModel + PostgreSQL : sécurité, RBAC, audit, pagination, pipeline"
+requires-python = ">=3.12"
+
+# Les dépendances restent dans requirements.txt / requirements-dev.txt :
+# ce fichier ne sert qu'à configurer l'outillage.
+
+# =============================================================================
+# Ruff — lint et formatage (remplace flake8, isort et black)
+# =============================================================================
+
+[tool.ruff]
+target-version = "py312"   # version de production (Docker + CI), pas celle du poste local
+line-length = 100
+extend-exclude = ["env", ".venv"]
+force-exclude = true   # respecte les exclusions même quand pre-commit passe les fichiers explicitement
+
+[tool.ruff.lint]
+select = [
+    "F",    # pyflakes — vrais bugs : noms indéfinis, imports et variables inutilisés
+    "E",    # pycodestyle — erreurs
+    "W",    # pycodestyle — avertissements
+    "I",    # isort — ordre des imports
+    "B",    # flake8-bugbear — pièges classiques (mutable par défaut, etc.)
+    "UP",   # pyupgrade — syntaxe moderne (Optional[X] -> X | None)
+    "C4",   # comprehensions inutilement verbeuses
+    "SIM",  # simplifications évidentes
+    "RUF",  # règles propres à ruff
+    "DTZ",  # datetime sans fuseau : utiliser app.core.clock.utc_now() (jetons/verrous décalés sinon)
+    "T20",  # print() : utiliser logging (un print de débogage oublié pollue chaque import)
+    "S",    # bandit : failles classiques (secrets en dur, SQL construit, subprocess, assert…)
+    "PT",   # style pytest : fixtures et paramétrages cohérents
+    "ASYNC",  # appels bloquants dans du code async
+]
+
+ignore = [
+    "E501",    # longueur de ligne — déjà gérée par le formateur
+    "B008",    # appel dans un argument par défaut : c'est le motif normal de Depends() en FastAPI
+    "RUF001",  # caractères Unicode ambigus — faux positifs sur les accents français
+    "RUF002",
+    "RUF003",
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "F401",     # les fixtures importées semblent inutilisées
+    "S101",     # assert : c'est le propos d'un test
+    "S105", "S106",  # mots de passe et secrets factices
+    "S311",     # générateurs aléatoires non cryptographiques
+    "S603", "S607",  # sous-processus lancés par les tests sur notre propre code
+    "PT011",    # pytest.raises(ValueError) sans match : parfois voulu
+    "PT018", "PT022",  # assertions composées et fixtures sans teardown : lisibles ici
+]
+"scripts/*" = ["T20"]             # un script en ligne de commande affiche à l'utilisateur
+"app/modules/__init__.py" = ["F401"]  # registre de modèles : ces imports peuplent SQLModel.metadata pour Alembic
+"tests/conftest.py" = ["E402"]    # imports après le réglage des variables d'environnement, volontaire
+"app/modules/*/models.py" = ["RUF012"]  # SQLModel gère lui-même les attributs de classe
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+# =============================================================================
+# Mypy — adoption progressive
+# =============================================================================
+# Le code applicatif est vérifié (0 erreur, bloquant en CI) ; `app/core/` (le socle réutilisable)
+# est de plus strict : toute fonction doit être entièrement annotée. Les colonnes de modèles
+# SQLModel sont marquées avec `col()` / `eager()` pour contenter le typage statique.
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+exclude = ["^alembic/", "^env/"]
+
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+# Tolérant par défaut : l'objectif est de pouvoir lancer mypy dès aujourd'hui
+# sans noyer la sortie sous des milliers d'erreurs.
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.core.*"
+disallow_untyped_defs = true      # le socle, lui, est tenu strictement
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = ["passlib.*", "jose.*"]
+ignore_missing_imports = true
+
+# =============================================================================
+# Pytest et couverture
+# =============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers --strict-config"
+markers = [
+    "slow: test lent, exclu par `make test` rapide (-m 'not slow')",
+]
+filterwarnings = [
+    "error::DeprecationWarning:app.*",   # les avertissements de notre code sont des erreurs
+    # slowapi appelle asyncio.iscoroutinefunction (déprécié en 3.14) : sans action possible de notre côté.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:slowapi.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = [
+    "app/server.py",          # câblage, couvert indirectement par les tests d'intégration
+    "app/core/database.py",   # remplacé par les fixtures de test
+]
+
+[tool.coverage.report]
+skip_covered = false
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
