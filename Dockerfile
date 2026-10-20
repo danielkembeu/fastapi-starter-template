@@ -1,5 +1,5 @@
 # --- Étape 1 : dépendances (couche mise en cache tant que les requirements ne changent pas)
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && for extra in $EXTRAS; do pip install --no-cache-dir -r "requirements-$extra.txt"; done
 
 # --- Étape 2 : image d'exécution minimale, sans outils de build, sans secrets
-FROM python:3.12-slim
+FROM python:3.15-slim
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
