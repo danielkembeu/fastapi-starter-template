@@ -36,7 +36,8 @@ hooks-all:  ## Exécute tous les hooks sur tous les fichiers (commit, puis push)
 # ------------------------------------------------------------------ exécution
 
 dev:  ## Démarre le serveur de développement avec rechargement (APP_HOST / APP_PORT)
-	uvicorn app.server:server --reload --host $${APP_HOST:-127.0.0.1} --port $${APP_PORT:-8000}
+	fastapi dev app/server.py --reload --host $${APP_HOST:-127.0.0.1} --port $${APP_PORT:-8000}
+# 	uvicorn app.server:server --reload --host $${APP_HOST:-127.0.0.1} --port $${APP_PORT:-8000}
 
 # --------------------------------------------------------------------- qualité
 

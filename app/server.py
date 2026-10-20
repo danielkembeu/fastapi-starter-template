@@ -52,8 +52,11 @@ async def lifespan(app: FastAPI):
             "error_debug": settings.expose_error_debug,
         },
     )
+
     mark_started()
+
     yield
+
     logger.info("Application arrêtée", extra={"event": "app.stopped"})
 
 
@@ -87,6 +90,11 @@ async def favicon():
 
 register_docs(server, settings)
 
+# Ajouté en dernier = le plus extérieur : toute réponse (même une erreur CORS) porte un X-Request-ID.
+# Le journal d'accès est INTÉRIEUR au contexte (il lit le request_id) mais extérieur au CORS.
+server.add_middleware(AccessLogMiddleware)
+server.add_middleware(RequestContextMiddleware)
+
 server.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -96,10 +104,6 @@ server.add_middleware(
     # Lisibles par un client web : identifiant de requête (support) et délai après un 429.
     expose_headers=["X-Request-ID", "Retry-After"],
 )
-# Ajouté en dernier = le plus extérieur : toute réponse (même une erreur CORS) porte un X-Request-ID.
-# Le journal d'accès est INTÉRIEUR au contexte (il lit le request_id) mais extérieur au CORS.
-server.add_middleware(AccessLogMiddleware)
-server.add_middleware(RequestContextMiddleware)
 
 server.include_router(router=health_route)
 

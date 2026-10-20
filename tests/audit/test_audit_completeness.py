@@ -34,9 +34,11 @@ MUTATING_ROUTES: dict[tuple[str, str], tuple[A, ...] | tuple[str, str]] = {
     ("POST", "/api/v1/projects/{project_id}/status"): (A.PROJECT_STATUS_CHANGED,),
     ("DELETE", "/api/v1/projects/{project_id}"): (A.PROJECT_DELETED,),
 }
+
 READS_THAT_ARE_AUDITED = {
     ("GET", "/api/v1/admin/audit-logs"): (A.AUDIT_VIEWED,),
 }
+
 # Produites par un mécanisme central, pas par une route précise.
 CENTRAL_ACTIONS = {A.ACCESS_DENIED, A.USER_ADMIN_CREATED}  # ce dernier : script, sans route
 
@@ -99,19 +101,24 @@ def test_every_catalog_action_is_attached_to_a_route_or_a_central_mechanism():
 def test_a_full_journey_produces_every_action_of_the_catalog(client, session, users, monkeypatch):
     """Preuve par l'exemple : un parcours complet de l'application émet CHAQUE action du catalogue."""
     monkeypatch.setattr("app.core.config.settings.MAX_LOGIN_ATTEMPTS", 2)
+
     boss, _second_admin = users.admin(), users.admin()
     ha = bearer(boss)
     email = "journey@example.com"
 
     # --- authentification
     client.post("/api/v1/auth/register", json=register_payload(email))
+
     tokens = client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD}).json()
+
     client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
     client.post(
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
     )  # rejeu : vol
+
     fresh = client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD}).json()
     client.post("/api/v1/auth/logout", json={"refresh_token": fresh["refresh_token"]})
+
     for _ in range(2):  # échecs puis verrou
         client.post("/api/v1/auth/login", json={"email": email, "password": "Wrong12345!"})
 
@@ -119,6 +126,7 @@ def test_a_full_journey_produces_every_action_of_the_catalog(client, session, us
     owner = users.user()
     hu = bearer(owner)
     project = client.post("/api/v1/projects", headers=hu, json={"name": "Alpha"}).json()
+
     client.patch(f"/api/v1/projects/{project['id']}", headers=hu, json={"description": "v2"})
     client.post(f"/api/v1/projects/{project['id']}/status", headers=hu, json={"status": "active"})
     client.delete(f"/api/v1/projects/{project['id']}", headers=hu)
@@ -134,4 +142,5 @@ def test_a_full_journey_produces_every_action_of_the_catalog(client, session, us
 
     produced = set(actions(session))
     missing = {a.value for a in A} - produced
+
     assert missing == set(), f"actions jamais produites par le parcours complet : {sorted(missing)}"

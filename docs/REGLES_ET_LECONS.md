@@ -8,7 +8,7 @@ défaire par commodité.
 | Règle | Le piège évité |
 |---|---|
 | Un environnement explicite et des **verrous de démarrage** | un poste de développement qui écrit dans la base de production parce que deux fichiers `.env` étaient identiques |
-| Une base **locale** en développement (`make db-up`) | idem ; et des migrations appliquées « à la main » qui désynchronisent le schéma |
+| Une base **locale** en développement (`make up`) | idem ; et des migrations appliquées « à la main » qui désynchronisent le schéma |
 | Variables **injectées** en production, jamais de fichier de secrets sur le serveur | fuite d'un `.env` dans une image ou un dépôt |
 | **Avant toute commande qui écrit en base, fixer la cible** (`ENVIRONMENT=ci` + `DATABASE_URL` explicite) ; jamais de script destructif « pour voir » ; scripts en **aperçu par défaut** + `--confirm` | une suppression lancée sans vérifier la base visée |
 | Alembic seul maître du schéma | des tables créées par l'application hors migration, qui bloquent le déploiement suivant |
