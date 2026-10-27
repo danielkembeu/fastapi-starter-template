@@ -2,14 +2,14 @@
 #   pip install -r requirements.txt -r requirements-dev.txt
 
 # Qualité de code
-ruff==0.16.6             # lint + formatage (remplace flake8, isort, black)
-mypy==2.3.1            # vérification de types, adoption progressive
+ruff==0.17.2             # lint + formatage (remplace flake8, isort, black)
+mypy==2.4.0            # vérification de types, adoption progressive
 
 # Tests
 pytest-cov==7.1.0        # mesure de couverture
 
 # Hooks git
-pre-commit==4.6.2         # hooks partagés : rapides au commit, complets au push
+pre-commit==4.7.0         # hooks partagés : rapides au commit, complets au push
 
 # Sécurité
-pip-audit==2.9.0          # vulnérabilités connues des dépendances (make audit)
+pip-audit==2.10.1          # vulnérabilités connues des dépendances (make audit)
